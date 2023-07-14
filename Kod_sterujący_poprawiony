@@ -1,0 +1,97 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+#include <Stepper.h>
+#include <DHT.h>
+
+#define BMP_SDA_PIN 4
+#define BMP_SCL_PIN 5
+#define DHT_PIN 6
+#define DHT_TYPE DHT11
+
+#define TRIGGER_PIN 7
+#define ECHO_PIN 8
+
+#define STEPPER_PIN1 9
+#define STEPPER_PIN2 10
+#define STEPPER_PIN3 11
+#define STEPPER_PIN4 12
+#define STEPPER_STEPS_PER_REV 2048
+
+Adafruit_BMP280 bmp;
+DHT dht(DHT_PIN, DHT_TYPE);
+Stepper stepper(STEPPER_STEPS_PER_REV, STEPPER_PIN1, STEPPER_PIN3, STEPPER_PIN2, STEPPER_PIN4);
+
+void setup() {
+  Serial.begin(9600);
+
+  if (!bmp.begin(BMP_SDA_PIN, BMP_SCL_PIN)) {
+    Serial.println("Nie znaleziono czujnika BMP280. Sprawdź połączenia!");
+    while (1);
+  }
+
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+
+  dht.begin();
+
+  stepper.setSpeed(300);  // Ustaw prędkość silnika krokowego (w RPM)
+}
+
+void loop() {
+  readBMP280();
+  readDistance();
+  readDHT11();
+  moveStepper();
+
+  delay(1000);  // Poczekaj 1 sekundę przed ponownym odczytem
+}
+
+void readBMP280() {
+  float temperature = bmp.readTemperature();
+  float pressure = bmp.readPressure() / 100.0;
+  Serial.print("Temperatura: ");
+  Serial.print(temperature);
+  Serial.print(" °C\tCiśnienie: ");
+  Serial.print(pressure);
+  Serial.println(" hPa");
+}
+
+void readDistance() {
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+  float distance = duration * 0.034 / 2;
+
+  Serial.print("Odległość: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  if (distance <= 10) {
+    // Zatrzymaj silnik krokowy, gdy odległość jest mniejsza lub równa 10 cm
+    stepper.setSpeed(0);
+  } else {
+    // Wznowienie ruchu silnika krokowego
+    stepper.setSpeed(300);  // Ustaw prędkość silnika krokowego (w RPM)
+  }
+}
+
+void readDHT11() {
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature();
+
+  Serial.print("Wilgotność powietrza: ");
+  Serial.print(humidity);
+  Serial.print("%\tTemperatura: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+}
+
+void moveStepper() {
+  // Wykonaj jedno pełne obroty silnikiem krokowym
+  stepper.step(STEPPER_STEPS_PER_REV);
+}
