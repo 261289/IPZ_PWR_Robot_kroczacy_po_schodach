@@ -1,0 +1,11 @@
+#include <Stepper.h>
+const int stepsPerRevolution = 2038;
+
+Stepper myStepper = Stepper(stepsPerRevolution, 2, 5, 4, 3);
+
+void setup() {}
+
+void loop() {
+	myStepper.setSpeed(15);
+	myStepper.step(stepsPerRevolution);
+} 
